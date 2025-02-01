@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Game do Açaí</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        #gameCanvas {
+            border: 2px solid black;
+            display: block;
+            margin: 20px auto;
+            background-color: lightblue;
+        }
+        #presentBox {
+            display: none;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        #celebration {
+            display: none;
+            font-size: 24px;
+            font-weight: bold;
+            color: purple;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+        @media (max-width: 600px) {
+            #gameCanvas {
+                width: 100%;
+                height: auto;
+            }
+            h1 {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Colete o maior número de esferas amarelas, desvie das demais esferas para não perder!</h1>
+    <canvas id="gameCanvas" width="300" height="400"></canvas>
+    <div id="celebration">🎉 Parabéns! Você jogou 40 segundos sem ser atingida! 🎉</div>
+    <div id="prizeMessage" style="display: none; font-size: 20px; font-weight: bold;">
+        Você acaba de ganhar um açaí e um beijo meu de graça!! 😘🍧<br><br>
+        <span id="bonusPrize">Por ter coletado muitas bolinhas amarelas, você ganhou um prêmio bônus surpresa! 🎁</span><br><br>
+        Parabéns Soso, você é incrível! 💜
+    </div>
+    <img id="presentBox" src="https://i.imgur.com/OJ8xkQ7.png" width="100" onclick="showPrize()">
+    
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const box = document.getElementById("presentBox");
+        const prizeText = document.getElementById("prizeMessage");
+        const celebration = document.getElementById("celebration");
+        const bonusPrize = document.getElementById("bonusPrize");
+        
+        let player = { x: 140, y: 350, width: 20, height: 20 };
+        let yellowBalls = [];
+        let obstacles = [];
+        let yellowBallCount = 0;
+        let gameOver = false;
+        let gameInterval;
+        let startTime = Date.now();
+        let elapsedTime = 0;
+
+        function drawPlayer() {
+            ctx.fillStyle = "red";
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+        }
+
+        function drawObstacles() {
+            obstacles.forEach(obstacle => {
+                ctx.fillStyle = obstacle.color;
+                ctx.beginPath();
+                ctx.arc(obstacle.x, obstacle.y, obstacle.width / 2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function drawYellowBalls() {
+            yellowBalls.forEach(ball => {
+                ctx.fillStyle = "yellow";
+                ctx.beginPath();
+                ctx.arc(ball.x, ball.y, ball.width / 2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function updateGame() {
+            elapsedTime = Date.now() - startTime;
+            if (Math.random() < 0.03) {
+                yellowBalls.push({
+                    x: Math.random() * (canvas.width - 20),
+                    y: -20,
+                    width: 15,
+                    height: 15
+                });
+            }
+            
+            if (Math.random() < 0.01) {
+                obstacles.push({
+                    x: Math.random() * (canvas.width - 20),
+                    y: -20,
+                    width: 20,
+                    height: 20,
+                    color: ["blue", "red", "green", "pink"][Math.floor(Math.random() * 4)]
+                });
+            }
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawPlayer();
+            drawYellowBalls();
+            drawObstacles();
+            
+            obstacles.forEach(obstacle => {
+                obstacle.y += 3;
+                if (obstacle.y > canvas.height) {
+                    obstacle.y = -20;
+                    obstacle.x = Math.random() * (canvas.width - obstacle.width);
+                }
+                if (
+                    player.x < obstacle.x + obstacle.width &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacle.height &&
+                    player.y + player.height > obstacle.y
+                ) {
+                    clearInterval(gameInterval);
+                    gameOver = true;
+                    alert("Você perdeu! Tente novamente.");
+                    location.reload();
+                }
+            });
+            
+            yellowBalls.forEach((ball, index) => {
+                ball.y += 5;
+                if (
+                    player.x < ball.x + ball.width &&
+                    player.x + player.width > ball.x &&
+                    player.y < ball.y + ball.height &&
+                    player.y + player.height > ball.y
+                ) {
+                    yellowBalls.splice(index, 1);
+                    yellowBallCount++;
+                }
+            });
+            
+            if (!gameOver && elapsedTime >= 40000) { // Tempo do jogo alterado para 40 segundos
+                clearInterval(gameInterval);
+                gameOver = true;
+                celebration.style.display = "block";
+                setTimeout(() => {
+                    celebration.style.display = "none";
+                    prizeText.style.display = "block"; // Agora exibe a mensagem do prêmio
+                }, 3000);
+            }
+        }
+
+        function movePlayer(event) {
+            if (gameOver) return;
+            if (event.key === "ArrowLeft" && player.x > 0) {
+                player.x -= 20;
+            } else if (event.key === "ArrowRight" && player.x < canvas.width - player.width) {
+                player.x += 20;
+            }
+        }
+
+        // Funções para controle de toque
+        let touchStartX = 0;
+        canvas.addEventListener("touchstart", function(event) {
+            touchStartX = event.touches[0].clientX;
+        });
+
+        canvas.addEventListener("touchmove", function(event) {
+            const touchEndX = event.touches[0].clientX;
+            if (touchEndX < touchStartX && player.x > 0) {
+                player.x -= 20; // Mover para a esquerda
+            } else if (touchEndX > touchStartX && player.x < canvas.width - player.width) {
+                player.x += 20; // Mover para a direita
+            }
+            touchStartX = touchEndX;
+        });
+
+        function showPrize() {
+            box.style.display = "none";
+            prizeText.style.display = "block";
+        }
+
+        document.addEventListener("keydown", movePlayer);
+        
+        for (let i = 0; i < 0; i++) {
+            obstacles.push({
+                x: Math.random() * (canvas.width - 20),
+                y: Math.random() * -200,
+                width: 20,
+                height: 20,
+                color: ["blue", "red", "green", "pink"][Math.floor(Math.random() * 4)]
+            });
+        }
+        
+        gameInterval = setInterval(updateGame, 30);
+    </script>
+</body>
+</html>
